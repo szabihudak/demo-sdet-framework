@@ -1,0 +1,13 @@
+{
+  "staging": {
+    "webBaseUrl": "https://eventhub.rahulshettyacademy.com/",
+    "apiBaseUrl": "https://api.eventhub.rahulshettyacademy.com/api/",
+    "openApiUrl": "https://api.eventhub.rahulshettyacademy.com/api/docs/",
+    "allow": {
+      "database": false,
+      "destructive": false,
+      "performance": false,
+      "interactiveDiscovery": true
+    }
+  }
+}

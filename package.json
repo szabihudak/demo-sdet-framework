@@ -1,0 +1,56 @@
+{
+  "name": "demo-sdet-framework",
+  "version": "1.0.0",
+  "private": true,
+  "packageManager": "npm@11.19.1",
+  "engines": {
+    "node": ">=22.19"
+  },
+  "description": "Production-oriented Playwright + TypeScript test automation framework for API, UI, contract, Docker, and CI testing.",
+  "scripts": {
+    "test": "playwright test",
+    "test:list": "playwright test --list",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:api": "playwright test --project=api",
+    "test:accessibility": "playwright test --project=accessibility",
+    "test:visual": "playwright test --project=visual",
+    "test:ui": "playwright test tests/ui",
+    "test:chromium": "playwright test --project=chromium",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "lint:architecture": "eslint . && tsx framework/tools/architecture.ts",
+    "doctor": "tsx framework/tools/doctor.ts",
+    "onboard": "tsx framework/tools/onboard.ts",
+    "qa:sync-ci-secrets": "tsx framework/tools/sync-ci-secrets.ts",
+    "qa:templates:check": "tsx framework/tools/templates.ts check",
+    "qa:templates:build": "tsx framework/tools/templates.ts build",
+    "qa:templates:extract": "tsx framework/tools/templates.ts extract",
+    "prepare": "husky"
+  },
+  "author": "Szabolcs Hudak",
+  "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@clack/prompts": "1.8.1",
+    "@eslint/markdown": "^8.0.3",
+    "@playwright/test": "^1.62.1",
+    "@types/node": "^26.2.0",
+    "@types/pg": "^8.23.1",
+    "@typescript-eslint/utils": "^8.71.2",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "eslint": "^10.12.0",
+    "eslint-plugin-playwright": "^2.12.1",
+    "husky": "^9.1.7",
+    "prettier": "^3.9.6",
+    "tsx": "^4.23.15",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.2",
+    "yaml": "^2.8.1"
+  },
+  "dependencies": {
+    "@sinclair/typebox": "^0.34.52",
+    "pg": "^8.23.0"
+  }
+}

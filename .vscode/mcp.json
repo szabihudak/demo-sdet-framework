@@ -1,0 +1,23 @@
+{
+  "servers": {
+    "playwright": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@playwright/mcp@0.0.83"]
+    },
+    "openapi": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@ivotoby/openapi-mcp-server@1.16.1",
+        "--api-base-url",
+        "https://api.eventhub.rahulshettyacademy.com/api/",
+        "--openapi-spec",
+        "https://api.eventhub.rahulshettyacademy.com/api/docs/",
+        "--tools",
+        "dynamic"
+      ]
+    }
+  }
+}

@@ -1,0 +1,8 @@
+  +---------------------------+      +---------------------------+
+  |  STAGE 1                  |      |  STAGE 2  (optional)      |
+  |  Framework setup          | ---> |  First tests              |
+  |                           |      |                           |
+  |  - project & modules      |      |  - test account (.env)    |
+  |  - install & browsers     |      |  - next: configure login  |
+  |  - doctor check           |      |  - skip? npm run onboard  |
+  +---------------------------+      +---------------------------+

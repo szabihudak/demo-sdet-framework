@@ -1,0 +1,20 @@
+# Playwright
+node_modules
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+.playwright-mcp/
+
+# Performance test artifacts
+/performance-results/
+.lighthouseci/
+
+# OS
+.DS_Store
+
+# Local secrets
+.env
+.env.*
+!.env.example
