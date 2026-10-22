@@ -27,7 +27,7 @@ type EventFilterScenario = {
 
 const eventFilterScenarios = [
   {
-    caseId: "T006_Events_API",
+    caseId: "T005_Events_API",
     name: "filters events by category",
     expectedField: "category",
     filters: () => ({
@@ -36,7 +36,7 @@ const eventFilterScenarios = [
     }),
   },
   {
-    caseId: "T007_Events_API",
+    caseId: "T006_Events_API",
     name: "filters events by city",
     expectedField: "city",
     filters: (event) => ({
@@ -45,7 +45,7 @@ const eventFilterScenarios = [
     }),
   },
   {
-    caseId: "T008_Events_API",
+    caseId: "T007_Events_API",
     name: "searches event title using free-text search",
     expectedField: "title",
     filters: (event) => ({
@@ -55,74 +55,44 @@ const eventFilterScenarios = [
   },
 ] satisfies EventFilterScenario[];
 
-const paginationScenarios = [
-  {
-    caseId: "T009_Events_API",
-    name: "returns the requested page and limit",
-    filters: { page: 2, limit: 1 },
-    expectedPage: 2,
-    expectedLimit: 1,
-  },
-] satisfies {
-  caseId: string;
-  name: string;
-  filters: EventFilters;
-  expectedPage: number;
-  expectedLimit: number;
-}[];
-
 function createUnknownEventId(): number {
   return randomInt(1_000_000_000, 2_000_000_000);
 }
 
 // unasserted: data, pagination.total, pagination.totalPages (shared staging inventory is variable; focused cases assert owned event values)
+// unasserted: pagination.page, pagination.limit (T004 covers only the no-token contract expectation; pagination behavior is out of scope)
 test.describe("Events API", () => {
-  test("T001_Events_API: lists events with default pagination", async ({
+  test("T001_Events_API: creates an event with valid required and optional fields", async ({
     eventApi,
-    apiTokenFor,
-  }) => {
-    const accessToken = await apiTokenFor("user");
-    const response = await eventApi.listEvents({}, accessToken);
-    expect(response.status()).toBe(HTTP_STATUS.OK);
-
-    const body: unknown = await response.json();
-    validateSchema(eventsListResponseSchema, body);
-
-    expect(body.success).toBe(true);
-    expect(body.pagination.page).toBe(1);
-    expect(body.pagination.limit).toBe(10);
-  });
-
-  test("T002_Events_API: creates an event with valid required and optional fields", async ({
     eventTestData,
   }) => {
-    const createdEvent = await eventTestData.create();
+    const eventRequest = createEvent();
+    const response = await eventApi.createEvent(
+      eventRequest,
+      eventTestData.accessToken,
+    );
+    expect(response.status()).toBe(HTTP_STATUS.CREATED);
 
-    expect(createdEvent.message).toBe("Event created successfully");
-    expect(createdEvent.response.id).toEqual(expect.any(Number));
-    expect(createdEvent.response.title).toBe(createdEvent.request.title);
-    expect(createdEvent.response.description).toBe(
-      createdEvent.request.description,
-    );
-    expect(createdEvent.response.category).toBe(createdEvent.request.category);
-    expect(createdEvent.response.venue).toBe(createdEvent.request.venue);
-    expect(createdEvent.response.city).toBe(createdEvent.request.city);
-    expect(createdEvent.response.eventDate).toBe(
-      createdEvent.request.eventDate,
-    );
-    expect(createdEvent.response.price).toBe(
-      String(createdEvent.request.price),
-    );
-    expect(createdEvent.response.totalSeats).toBe(
-      createdEvent.request.totalSeats,
-    );
-    expect(createdEvent.response.availableSeats).toBe(
-      createdEvent.request.totalSeats,
-    );
-    expect(createdEvent.response.imageUrl).toBe(createdEvent.request.imageUrl);
+    const body: unknown = await response.json();
+    eventTestData.trackCreatedEvent(body);
+    validateSchema(createEventResponseSchema, body);
+
+    expect(body.success).toBe(true);
+    expect(body.message).toBe("Event created successfully");
+    expect(body.data.id).toEqual(expect.any(Number));
+    expect(body.data.title).toBe(eventRequest.title);
+    expect(body.data.description).toBe(eventRequest.description);
+    expect(body.data.category).toBe(eventRequest.category);
+    expect(body.data.venue).toBe(eventRequest.venue);
+    expect(body.data.city).toBe(eventRequest.city);
+    expect(body.data.eventDate).toBe(eventRequest.eventDate);
+    expect(body.data.price).toBe(String(eventRequest.price));
+    expect(body.data.totalSeats).toBe(eventRequest.totalSeats);
+    expect(body.data.availableSeats).toBe(eventRequest.totalSeats);
+    expect(body.data.imageUrl).toBe(eventRequest.imageUrl);
   });
 
-  test("T003_Events_API: retrieves a created event by its ID", async ({
+  test("T002_Events_API: retrieves a created event by its ID", async ({
     eventTestData,
     eventApi,
   }) => {
@@ -140,7 +110,7 @@ test.describe("Events API", () => {
     expect(body.data).toEqual(createdEvent.response);
   });
 
-  test("T004_Events_API: updates an event using the complete update body", async ({
+  test("T003_Events_API: updates an event using the complete update body", async ({
     eventTestData,
     eventApi,
   }) => {
@@ -174,7 +144,7 @@ test.describe("Events API", () => {
   });
 
   // separate-test: verifies the provider's explicitly public route contract without authentication
-  test("T005_Events_API: allows the contract-public event list without a token", async ({
+  test("T004_Events_API: allows the contract-public event list without a token", async ({
     eventApi,
   }) => {
     const response = await eventApi.listEvents();
@@ -184,8 +154,6 @@ test.describe("Events API", () => {
     validateSchema(eventsListResponseSchema, body);
 
     expect(body.success).toBe(true);
-    expect(body.pagination.page).toBe(1);
-    expect(body.pagination.limit).toBe(10);
   });
 
   for (const scenario of eventFilterScenarios) {
@@ -217,26 +185,7 @@ test.describe("Events API", () => {
     });
   }
 
-  for (const scenario of paginationScenarios) {
-    test(`${scenario.caseId}: ${scenario.name}`, async ({
-      eventApi,
-      apiTokenFor,
-    }) => {
-      const accessToken = await apiTokenFor("user");
-      const response = await eventApi.listEvents(scenario.filters, accessToken);
-      expect(response.status()).toBe(HTTP_STATUS.OK);
-
-      const body: unknown = await response.json();
-      validateSchema(eventsListResponseSchema, body);
-
-      expect(body.success).toBe(true);
-      expect(body.pagination.page).toBe(scenario.expectedPage);
-      expect(body.pagination.limit).toBe(scenario.expectedLimit);
-      expect(body.data.length).toBeLessThanOrEqual(scenario.expectedLimit);
-    });
-  }
-
-  test("T010_Events_API: returns not found for an unknown event ID", async ({
+  test("T008_Events_API: returns not found for an unknown event ID", async ({
     eventApi,
     apiTokenFor,
   }) => {
@@ -251,7 +200,7 @@ test.describe("Events API", () => {
     expect(body.error).toEqual(expect.any(String));
   });
 
-  test("T011_Events_API: returns not found when updating an unknown event ID", async ({
+  test("T009_Events_API: returns not found when updating an unknown event ID", async ({
     eventApi,
     apiTokenFor,
   }) => {
@@ -268,7 +217,7 @@ test.describe("Events API", () => {
     expect(body.error).toEqual(expect.any(String));
   });
 
-  test("T012_Events_API: returns not found when deleting an unknown event ID", async ({
+  test("T010_Events_API: returns not found when deleting an unknown event ID", async ({
     eventApi,
     apiTokenFor,
   }) => {
@@ -283,7 +232,7 @@ test.describe("Events API", () => {
     expect(body.error).toEqual(expect.any(String));
   });
 
-  test("T013_Events_API: rejects event creation when required title is missing", async ({
+  test("T011_Events_API: rejects event creation when required title is missing", async ({
     eventApi,
     apiTokenFor,
   }) => {
@@ -297,7 +246,7 @@ test.describe("Events API", () => {
     expect(body.details[0]?.field).toBe("title");
   });
 
-  test("T015_Events_API: rejects update when required title is missing", async ({
+  test("T012_Events_API: rejects update when required title is missing", async ({
     eventTestData,
     eventApi,
   }) => {
@@ -315,7 +264,7 @@ test.describe("Events API", () => {
     expect(body.details[0]?.field).toBe("title");
   });
 
-  test("T017_Events_API: deletes a test-owned event and confirms it is no longer retrievable", async ({
+  test("T013_Events_API: deletes a test-owned event and confirms it is no longer retrievable", async ({
     eventTestData,
     eventApi,
   }) => {

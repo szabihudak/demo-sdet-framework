@@ -20,6 +20,7 @@ type AppFixtures = {
   eventApi: EventApiClient;
   eventTestData: {
     accessToken: string;
+    trackCreatedEvent: (responseBody: unknown) => number;
     create: (request?: CreateEventInput) => Promise<{
       request: CreateEventInput;
       response: Event;
@@ -40,8 +41,27 @@ export const test = frameworkTest.extend<AppFixtures>({
   eventTestData: async ({ eventApi, apiTokenFor }, use) => {
     const accessToken = await apiTokenFor("user");
     const createdIds: number[] = [];
+    const trackCreatedEvent = (responseBody: unknown): number => {
+      if (
+        typeof responseBody !== "object" ||
+        responseBody === null ||
+        !("data" in responseBody) ||
+        typeof responseBody.data !== "object" ||
+        responseBody.data === null ||
+        !("id" in responseBody.data) ||
+        typeof responseBody.data.id !== "number"
+      ) {
+        throw new Error(
+          "Event response has no numeric event ID to register for cleanup.",
+        );
+      }
+
+      createdIds.push(responseBody.data.id);
+      return responseBody.data.id;
+    };
     const createdEvents = {
       accessToken,
+      trackCreatedEvent,
       create: async (request = createEvent()) => {
         const createResponse = await eventApi.createEvent(request, accessToken);
 
@@ -52,20 +72,7 @@ export const test = frameworkTest.extend<AppFixtures>({
         }
 
         const createdEventBody: unknown = await createResponse.json();
-        if (
-          typeof createdEventBody !== "object" ||
-          createdEventBody === null ||
-          !("data" in createdEventBody) ||
-          typeof createdEventBody.data !== "object" ||
-          createdEventBody.data === null ||
-          !("id" in createdEventBody.data) ||
-          typeof createdEventBody.data.id !== "number"
-        ) {
-          throw new Error(
-            "Event setup response has no numeric event ID to clean up.",
-          );
-        }
-        createdIds.push(createdEventBody.data.id);
+        trackCreatedEvent(createdEventBody);
         validateSchema(createEventResponseSchema, createdEventBody);
 
         return {

@@ -26,13 +26,13 @@ const reporter: ReporterDescription[] = [
 export default defineConfig({
   testDir: "./tests",
 
-  fullyParallel: true,
+  fullyParallel: false,
 
   forbidOnly: isCI,
 
   retries: isCI ? frameworkConfig.execution.ciRetries : 0,
 
-  workers: isCI ? frameworkConfig.execution.ciWorkers : undefined,
+  workers: 1,
 
   reporter,
 
