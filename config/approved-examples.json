@@ -1,4 +1,30 @@
 {
   "$comment": "Project golden examples: reviewed, green implementations from this project. They take precedence over the generic templates in framework/templates/index.json for the same responsibility. Project-owned; template updates never change this file.",
-  "examples": []
+  "examples": [
+    {
+      "id": "api-scenario-spec",
+      "need": "Login API: contract, validation and credential errors",
+      "file": "tests/api/login.spec.ts"
+    },
+    {
+      "id": "api-client",
+      "need": "Auth API client: login and current user",
+      "file": "src/api/clients/AuthApiClient.ts"
+    },
+    {
+      "id": "request-schema",
+      "need": "Login request contract with field constraints",
+      "file": "src/api/schemas/LoginRequestSchema.ts"
+    },
+    {
+      "id": "response-schema",
+      "need": "Login response contract, strict nested user",
+      "file": "src/api/schemas/LoginResponseSchema.ts"
+    },
+    {
+      "id": "domain-constants",
+      "need": "Observed API error values",
+      "file": "src/api/constants/apiErrors.ts"
+    }
+  ]
 }
