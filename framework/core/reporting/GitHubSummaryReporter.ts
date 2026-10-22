@@ -9,7 +9,7 @@ import type {
   TestResult,
 } from "@playwright/test/reporter";
 
-type TestOutcome = "passed" | "failed" | "flaky" | "skipped";
+type TestOutcome = "passed" | "failed" | "skipped";
 type TestType = "API" | "UI";
 
 type OutcomeCounts = Record<TestOutcome, number>;
@@ -63,7 +63,6 @@ export default class GitHubSummaryReporter implements Reporter {
     const counts = {
       passed: 0,
       failed: 0,
-      flaky: 0,
       skipped: 0,
     };
     const countsByType: Record<TestType, OutcomeCounts> = {
@@ -116,10 +115,6 @@ export default class GitHubSummaryReporter implements Reporter {
   ): TestOutcome {
     const outcome = test.outcome();
 
-    if (outcome === "flaky") {
-      return "flaky";
-    }
-
     if (outcome === "skipped" || latestResult?.status === "skipped") {
       return "skipped";
     }
@@ -152,10 +147,6 @@ export default class GitHubSummaryReporter implements Reporter {
   private aggregateOutcome(outcomes: TestOutcome[]): TestOutcome {
     if (outcomes.includes("failed")) {
       return "failed";
-    }
-
-    if (outcomes.includes("flaky")) {
-      return "flaky";
     }
 
     if (outcomes.every((outcome) => outcome === "skipped")) {
@@ -223,7 +214,6 @@ export default class GitHubSummaryReporter implements Reporter {
       "<tbody>",
       `<tr><td>✅ Passed</td><td align="right">${counts.passed}</td></tr>`,
       `<tr><td>❌ Failed</td><td align="right">${counts.failed}</td></tr>`,
-      `<tr><td>⚠️ Flaky</td><td align="right">${counts.flaky}</td></tr>`,
       `<tr><td>⏭ Skipped</td><td align="right">${counts.skipped}</td></tr>`,
       "</tbody>",
       "</table>",
@@ -232,13 +222,17 @@ export default class GitHubSummaryReporter implements Reporter {
       "",
       "<table>",
       "<thead>",
-      "<tr><th>Type</th><th>✅ Passed</th><th>❌ Failed</th><th>⚠️ Flaky</th><th>⏭ Skipped</th></tr>",
+      "<tr><th>Type</th><th>✅ Passed</th><th>❌ Failed</th><th>⏭ Skipped</th></tr>",
       "</thead>",
       "<tbody>",
-      ...(["API", "UI"] as const).map((type) => {
-        const typeCounts = countsByType[type];
-        return `<tr><td>${type === "API" ? "🔌 API" : "🖥️ UI"}</td><td>${typeCounts.passed}</td><td>${typeCounts.failed}</td><td>${typeCounts.flaky}</td><td>${typeCounts.skipped}</td></tr>`;
-      }),
+      ...(["API", "UI"] as const)
+        .filter((type) =>
+          Object.values(countsByType[type]).some((count) => count > 0),
+        )
+        .map((type) => {
+          const typeCounts = countsByType[type];
+          return `<tr><td>${type === "API" ? "🔌 API" : "🖥️ UI"}</td><td>${typeCounts.passed}</td><td>${typeCounts.failed}</td><td>${typeCounts.skipped}</td></tr>`;
+        }),
       "</tbody>",
       "</table>",
       "",
@@ -309,10 +303,6 @@ export default class GitHubSummaryReporter implements Reporter {
   private outcomeIcon(outcome: TestOutcome): string {
     if (outcome === "failed") {
       return "❌";
-    }
-
-    if (outcome === "flaky") {
-      return "⚠️";
     }
 
     if (outcome === "skipped") {
