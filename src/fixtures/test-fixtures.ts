@@ -4,6 +4,8 @@ import {
 } from "@framework/fixtures/framework-fixtures";
 import { AuthApiClient } from "@app/api/clients/AuthApiClient";
 import { EventApiClient } from "@app/api/clients/EventApiClient";
+import { AdminEventsPage } from "@app/pages/AdminEventsPage";
+import { EventsPage } from "@app/pages/EventsPage";
 import { HomePage } from "@app/pages/HomePage";
 import { LoginPage } from "@app/pages/LoginPage";
 import type { CreateEventInput } from "@app/api/schemas/CreateEventInputSchema";
@@ -18,6 +20,7 @@ import { validateSchema } from "@framework/api/SchemaValidator";
 type AppFixtures = {
   authApi: AuthApiClient;
   eventApi: EventApiClient;
+  eventHubPage: import("@playwright/test").Page;
   eventTestData: {
     accessToken: string;
     trackCreatedEvent: (responseBody: unknown) => number;
@@ -27,6 +30,8 @@ type AppFixtures = {
       message: CreateEventResponse["message"];
     }>;
   };
+  adminEventsPage: AdminEventsPage;
+  eventsPage: EventsPage;
   homePage: HomePage;
   loginPage: LoginPage;
 };
@@ -37,6 +42,13 @@ export const test = frameworkTest.extend<AppFixtures>({
   },
   eventApi: async ({ request }, use) => {
     await use(new EventApiClient(request));
+  },
+  eventHubPage: async ({ page, apiTokenFor }, use) => {
+    const accessToken = await apiTokenFor("user");
+    await page.addInitScript((token: string) => {
+      window.localStorage.setItem("eventhub_token", token);
+    }, accessToken);
+    await use(page);
   },
   eventTestData: async ({ eventApi, apiTokenFor }, use) => {
     const accessToken = await apiTokenFor("user");
@@ -104,6 +116,12 @@ export const test = frameworkTest.extend<AppFixtures>({
   },
   homePage: async ({ page }, use) => {
     await use(new HomePage(page));
+  },
+  adminEventsPage: async ({ eventHubPage }, use) => {
+    await use(new AdminEventsPage(eventHubPage));
+  },
+  eventsPage: async ({ eventHubPage }, use) => {
+    await use(new EventsPage(eventHubPage));
   },
   loginPage: async ({ page }, use) => {
     await use(new LoginPage(page));

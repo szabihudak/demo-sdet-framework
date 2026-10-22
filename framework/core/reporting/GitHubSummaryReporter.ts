@@ -10,6 +10,9 @@ import type {
 } from "@playwright/test/reporter";
 
 type TestOutcome = "passed" | "failed" | "flaky" | "skipped";
+type TestType = "API" | "UI";
+
+type OutcomeCounts = Record<TestOutcome, number>;
 
 interface TestSummary {
   title: string;
@@ -21,6 +24,7 @@ interface FailedTestSummary {
   title: string;
   file: string;
   line: number;
+  type: TestType;
   retry: number;
   errorMessage: string;
   hasScreenshot: boolean;
@@ -62,6 +66,10 @@ export default class GitHubSummaryReporter implements Reporter {
       flaky: 0,
       skipped: 0,
     };
+    const countsByType: Record<TestType, OutcomeCounts> = {
+      API: { ...counts },
+      UI: { ...counts },
+    };
 
     const testSummaries: TestSummary[] = [];
     const failedTests: FailedTestSummary[] = [];
@@ -72,11 +80,13 @@ export default class GitHubSummaryReporter implements Reporter {
 
       counts[outcome] += 1;
 
+      const file = this.toRepositoryRelativePath(test.location.file);
       testSummaries.push({
         title: test.title,
-        file: this.toRepositoryRelativePath(test.location.file),
+        file,
         outcome,
       });
+      countsByType[this.toTestType(file)][outcome] += 1;
 
       if (outcome === "failed" && latestResult) {
         failedTests.push(this.toFailedTestSummary(test, latestResult));
@@ -88,6 +98,7 @@ export default class GitHubSummaryReporter implements Reporter {
     const summary = this.buildSummary(
       result,
       counts,
+      countsByType,
       this.toFileSummaries(testSummaries),
       failedTests,
       durationMs,
@@ -163,11 +174,14 @@ export default class GitHubSummaryReporter implements Reporter {
     );
 
     return {
-      title: test.titlePath().join(" › "),
+      title: test.titlePath().filter(Boolean).join(" › "),
       file: this.toRepositoryRelativePath(test.location.file),
       line: test.location.line,
+      type: this.toTestType(this.toRepositoryRelativePath(test.location.file)),
       retry: result.retry,
-      errorMessage: result.errors[0]?.message ?? "Unknown test failure",
+      errorMessage: this.shortErrorDescription(
+        result.errors[0]?.message ?? "Unknown test failure",
+      ),
       hasScreenshot: attachmentNames.has("screenshot"),
       hasTrace: attachmentNames.has("trace"),
       hasVideo: attachmentNames.has("video"),
@@ -176,12 +190,8 @@ export default class GitHubSummaryReporter implements Reporter {
 
   private buildSummary(
     result: FullResult,
-    counts: {
-      passed: number;
-      failed: number;
-      flaky: number;
-      skipped: number;
-    },
+    counts: OutcomeCounts,
+    countsByType: Record<TestType, OutcomeCounts>,
     files: FileSummary[],
     failedTests: FailedTestSummary[],
     durationMs: number,
@@ -218,6 +228,20 @@ export default class GitHubSummaryReporter implements Reporter {
       "</tbody>",
       "</table>",
       "",
+      "<h3>Results by Test Type</h3>",
+      "",
+      "<table>",
+      "<thead>",
+      "<tr><th>Type</th><th>✅ Passed</th><th>❌ Failed</th><th>⚠️ Flaky</th><th>⏭ Skipped</th></tr>",
+      "</thead>",
+      "<tbody>",
+      ...(["API", "UI"] as const).map((type) => {
+        const typeCounts = countsByType[type];
+        return `<tr><td>${type === "API" ? "🔌 API" : "🖥️ UI"}</td><td>${typeCounts.passed}</td><td>${typeCounts.failed}</td><td>${typeCounts.flaky}</td><td>${typeCounts.skipped}</td></tr>`;
+      }),
+      "</tbody>",
+      "</table>",
+      "",
       `<p><strong>Duration:</strong> ${durationSeconds}s</p>`,
       "",
       "<h3>Files and Tests</h3>",
@@ -247,25 +271,24 @@ export default class GitHubSummaryReporter implements Reporter {
       lines.push("<h3>Failed Test Details</h3>", "");
 
       for (const failedTest of failedTests) {
+        const sourceUrl = this.githubSourceUrl(
+          failedTest.file,
+          failedTest.line,
+        );
+        const runUrl = this.githubRunUrl();
+        const location = `${failedTest.file}:${failedTest.line}`;
+        const artifactName = `test-results-${this.projectName}`;
+
         lines.push(
           "<details>",
-          `<summary>❌ ${this.escapeHtml(failedTest.title)}</summary>`,
+          `<summary>❌ ${this.escapeHtml(failedTest.type)}: ${this.escapeHtml(failedTest.title)}</summary>`,
           "",
-          "<br>",
-          "",
-          `<p><strong>Location:</strong> <code>${this.escapeHtml(
-            `${failedTest.file}:${failedTest.line}`,
-          )}</code><br>`,
+          `<p><strong>Test:</strong> ${sourceUrl ? `<a href="${this.escapeHtml(sourceUrl)}"><code>${this.escapeHtml(location)}</code></a>` : `<code>${this.escapeHtml(location)}</code>`}<br>`,
           `<strong>Retry:</strong> ${failedTest.retry}</p>`,
           "",
-          `<pre><code>${this.escapeHtml(failedTest.errorMessage)}</code></pre>`,
+          `<p><strong>Failure:</strong> ${this.escapeHtml(failedTest.errorMessage)}</p>`,
           "",
-          "<p><strong>Diagnostics</strong></p>",
-          "<ul>",
-          `<li>${failedTest.hasScreenshot ? "✅" : "➖"} Screenshot</li>`,
-          `<li>${failedTest.hasTrace ? "✅" : "➖"} Trace</li>`,
-          `<li>${failedTest.hasVideo ? "✅" : "➖"} Video</li>`,
-          "</ul>",
+          `<p><strong>Diagnostics:</strong> ${failedTest.hasScreenshot ? "✅ Screenshot" : "➖ Screenshot"}; ${failedTest.hasTrace ? "✅ Trace" : "➖ Trace"}; ${failedTest.hasVideo ? "✅ Video" : "➖ Video"}${runUrl && (failedTest.hasScreenshot || failedTest.hasTrace || failedTest.hasVideo) ? ` (<a href="${this.escapeHtml(runUrl)}">open Actions run artifacts</a>, <code>${this.escapeHtml(artifactName)}</code>)` : ""}</p>`,
           "",
           "</details>",
           "",
@@ -305,6 +328,51 @@ export default class GitHubSummaryReporter implements Reporter {
       .filter(Boolean)
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join(" ");
+  }
+
+  private toTestType(file: string): TestType {
+    return file.startsWith("tests/api/") ? "API" : "UI";
+  }
+
+  private shortErrorDescription(message: string): string {
+    const lines = message
+      .replace(/\u001b\[[0-9;]*m/g, "")
+      .split("\n")
+      .map((line) => line.trim());
+    const expected = lines.find((line) => line.startsWith("Expected:"));
+    const received = lines.find((line) => line.startsWith("Received:"));
+    const description =
+      expected && received
+        ? `${expected}; ${received.toLowerCase()}`
+        : (lines[0] ?? "Unknown test failure");
+
+    return description.length > 240
+      ? `${description.slice(0, 237)}...`
+      : description;
+  }
+
+  private githubSourceUrl(file: string, line: number): string | undefined {
+    const serverUrl = process.env.GITHUB_SERVER_URL;
+    const repository = process.env.GITHUB_REPOSITORY;
+    const revision = process.env.GITHUB_SHA;
+
+    if (!serverUrl || !repository || !revision) {
+      return undefined;
+    }
+
+    return `${serverUrl}/${repository}/blob/${revision}/${file}#L${line}`;
+  }
+
+  private githubRunUrl(): string | undefined {
+    const serverUrl = process.env.GITHUB_SERVER_URL;
+    const repository = process.env.GITHUB_REPOSITORY;
+    const runId = process.env.GITHUB_RUN_ID;
+
+    if (!serverUrl || !repository || !runId) {
+      return undefined;
+    }
+
+    return `${serverUrl}/${repository}/actions/runs/${runId}`;
   }
 
   private toRepositoryRelativePath(filePath: string): string {
