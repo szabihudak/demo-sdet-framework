@@ -79,6 +79,8 @@ jobs:
       # Firefox refuses to start when HOME belongs to another user in containers.
       HOME: /root
       # @qa:secrets:start (managed by npm run qa:sync-ci-secrets)
+      USER_USERNAME: ${{ secrets.USER_USERNAME }}
+      USER_PASSWORD: ${{ secrets.USER_PASSWORD }}
       # @qa:secrets:end
 
     steps:
