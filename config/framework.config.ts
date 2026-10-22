@@ -12,7 +12,16 @@ export default defineFrameworkConfig({
   },
   browsers: ["chromium"],
   execution: { ciRetries: 2, ciWorkers: "50%" },
-  auth: { api: { strategy: "none" }, browser: { strategy: "none" } },
+  auth: {
+    api: {
+      strategy: "bearer",
+      loginPath: "auth/login",
+      usernameField: "email",
+      passwordField: "password",
+      tokenField: "token",
+    },
+    browser: { strategy: "none" },
+  },
   roles: {
     user: { usernameEnv: "USER_USERNAME", passwordEnv: "USER_PASSWORD" },
   },
