@@ -9,7 +9,6 @@ export class LoginPage {
   readonly invalidEmailMessage: Locator;
   readonly passwordLengthMessage: Locator;
   readonly errorToast: Locator;
-  readonly homeHeading: Locator;
 
   constructor(page: Page) {
     this.page = page;
@@ -25,9 +24,6 @@ export class LoginPage {
       { exact: true },
     );
     this.errorToast = page.getByText("Internal Server Error", { exact: true });
-    this.homeHeading = page.getByRole("heading", {
-      name: /Discover & Book\s+Amazing Events/,
-    });
   }
 
   async goto(): Promise<void> {
